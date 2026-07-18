@@ -2,58 +2,49 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# ---------------------------------------------------------
-# 1. LOAD ASSETS
-# ---------------------------------------------------------
-@st.cache_resource
-def load_assets():
-    model = joblib.load('growup_investor_model.pkl')
-    scaler = joblib.load('growup_scaler.pkl')
-    feature_names = joblib.load('model_columns.pkl')
-    return model, scaler, feature_names
-
+# Load Assets
 model, scaler, feature_names = load_assets()
 
-# ---------------------------------------------------------
-# 2. UI - INPUT FIELDS
-# ---------------------------------------------------------
 st.title("📈 Grow-Up Hedge Funding")
-st.write("Enter customer survey details to predict investment potential.")
 
-# Dynamic input collection based on feature_names
-user_inputs = {}
-for col in feature_names:
-    if 'Age' in col:
-        user_inputs[col] = st.sidebar.slider(col, 18, 60, 25)
-    elif 'Rank' in col:
-        user_inputs[col] = st.sidebar.slider(col, 1, 7, 3)
-    elif 'Expected_Return' in col:
-        user_inputs[col] = st.sidebar.selectbox(col, [0, 1, 2])
-    else:
-        # Default for one-hot encoded binary features
-        user_inputs[col] = st.sidebar.checkbox(col, value=False)
+# Use Tabs to group inputs
+tab1, tab2 = st.tabs(["👤 Personal Details", "💰 Investment Preferences"])
+
+with tab1:
+    age = st.slider("Age", 18, 60, 25)
+    gender = st.radio("Gender", ["Male", "Female"])
+
+with tab2:
+    rank_fd = st.slider("Rank: Fixed Deposits (1=Best, 7=Worst)", 1, 7, 3)
+    exp_return = st.selectbox("Expected Return", ["10%-20%", "20%-30%", "30%-40%"])
 
 # ---------------------------------------------------------
-# 3. CONSTRUCT DATAFRAME
+# HELPER: CONVERT USER INPUTS TO MODEL COLUMNS
 # ---------------------------------------------------------
-input_df = pd.DataFrame(user_inputs, index=[0])
-
-# Ensure columns match training order exactly
-input_df = input_df[feature_names]
+def get_model_input():
+    # 1. Start with all zeros
+    data = {col: 0 for col in feature_names}
+    
+    # 2. Map direct values
+    data['Age'] = age
+    data['Rank_FixedDeposits'] = rank_fd
+    
+    # 3. Map One-Hot Encoded Categories (Crucial Step!)
+    # If Gender_Male was a column, this turns it on/off
+    if f'Gender_{gender}' in data:
+        data[f'Gender_{gender}'] = 1
+        
+    # Map the Expected Return dropdown
+    if f'Expected_Return_{exp_return}' in data:
+        data[f'Expected_Return_{exp_return}'] = 1
+        
+    return pd.DataFrame([data])
 
 # ---------------------------------------------------------
-# 4. SCALE & PREDICT
+# PREDICT
 # ---------------------------------------------------------
 if st.button("Predict Investment Likelihood"):
-    try:
-        scaled_input = scaler.transform(input_df)
-        prediction = model.predict(scaled_input)[0]
-        probability = model.predict_proba(scaled_input)[0][1] * 100
-        
-        st.subheader("Prediction Results")
-        if prediction == 1:
-            st.success(f"Likely to invest (Probability: {probability:.1f}%)")
-        else:
-            st.error(f"Unlikely to invest (Probability: {probability:.1f}%)")
-    except Exception as e:
-        st.error(f"Error: {e}")
+    input_df = get_model_input()
+    scaled_input = scaler.transform(input_df)
+    
+    # Predict... (same logic as before)
