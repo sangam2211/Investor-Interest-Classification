@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# 1. LOAD ASSETS
+# ---------------------------------------------------------
+# 1. SETUP
+# ---------------------------------------------------------
+# Load assets once and cache them
 @st.cache_resource
 def load_assets():
     model = joblib.load('growup_investor_model.pkl')
@@ -12,33 +15,55 @@ def load_assets():
 
 model, scaler, feature_names = load_assets()
 
-# 2. UI
+# ---------------------------------------------------------
+# 2. UI (Define variables here)
+# ---------------------------------------------------------
 st.title("📈 Grow-Up Investor Prediction")
-# Use the numeric values found in your notebook
+
+age = st.slider("Age", 18, 65, 30)
+# Use the values found in your notebook [1, 2, 3, 4]
 duration = st.selectbox("Investment Duration", [1, 2, 3, 4]) 
-# Add your other inputs here...
 
-def get_model_input():
-    # Initialize all 38 columns to 0
-    data = {col: 0 for col in feature_names}
+# ---------------------------------------------------------
+# 3. MAPPING LOGIC (Safe & Scope-Protected)
+# ---------------------------------------------------------
+def get_prediction(age_val, dur_val):
+    # Initialize a dataframe of 0s with the exact 38 column names
+    input_df = pd.DataFrame(0, index=[0], columns=feature_names)
     
-    # Map Numerical inputs directly
-    data['Age'] = age 
-    
-    # CORRECT LOGIC FOR drop_first=True:
-    # If the user selects the "first" category (e.g., 1), you do nothing (leave as 0).
-    # If the user selects any other category (2, 3, or 4), you set that specific column to 1.
-    if duration != 1:
-        col_name = f'Investment_Duration_{duration}'
-        if col_name in data:
-            data[col_name] = 1
+    # Map inputs
+    # Check if 'Age' exists in the trained columns before setting it
+    if 'Age' in input_df.columns:
+        input_df['Age'] = age_val
+        
+    # Map Duration (Handling the drop_first=True logic)
+    # If the user selects 1, we do nothing (it remains 0, which is correct for dropped columns)
+    # If user selects 2, 3, or 4, we set that specific column to 1
+    duration_col = f'Investment_Duration_{dur_val}'
+    if duration_col in input_df.columns:
+        input_df[duration_col] = 1
+        
+    return input_df
+
+# ---------------------------------------------------------
+# 4. EXECUTION
+# ---------------------------------------------------------
+if st.button("Predict Likelihood"):
+    try:
+        # Build the input
+        df_input = get_prediction(age, duration)
+        
+        # Scale and Predict
+        # We assume the scaler was fitted on the 38 features
+        scaled_data = scaler.transform(df_input)
+        
+        prob = model.predict_proba(scaled_data)[0][1] * 100
+        
+        if prob > 50:
+            st.success(f"Likely to Invest: {prob:.1f}%")
+        else:
+            st.warning(f"Unlikely to Invest: {prob:.1f}%")
             
-    return pd.DataFrame([data])
-
-# 3. PREDICTION
-if st.button("Predict"):
-    input_df = get_model_input()
-    # Ensure column order matches the model exactly
-    input_df = input_df[feature_names] 
-    prob = model.predict_proba(scaler.transform(input_df))[0][1]
-    st.write(f"Probability: {prob*100:.2f}%")
+    except Exception as e:
+        st.error(f"Mapping error: {e}")
+        st.write("Current columns:", feature_names)
