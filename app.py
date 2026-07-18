@@ -174,17 +174,18 @@ if predict_clicked:
         scaled_data = scaler.transform(df_input)
         probabilities = model.predict_proba(scaled_data)[0]
         
-        prob_no = probabilities[0] * 100
+        # Always use the "Yes" probability for the display so it makes sense!
         prob_yes = probabilities[1] * 100
         
         st.write("") # Spacer
         res_col1, res_col2, res_col3 = st.columns([1, 2, 1])
         with res_col2:
             if prob_yes >= 50.0:
-                st.success(f"### 📈 Likely to Invest: {prob_yes:.1f}%")
+                st.success(f"### 📈 Likely to Invest\n**Probability of Investing:** {prob_yes:.1f}%")
                 st.balloons()
             else:
-                st.warning(f"### 📉 Unlikely to Invest: {prob_no:.1f}%")
+                # Now it will correctly say something like "Probability of Investing: 11.0%"
+                st.warning(f"### 📉 Unlikely to Invest\n**Probability of Investing:** {prob_yes:.1f}%")
                 
     except Exception as e:
         st.error(f"Execution Error: {e}")
