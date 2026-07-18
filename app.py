@@ -14,13 +14,12 @@ def load_assets():
 model, feature_names = load_assets()
 
 # ---------------------------------------------------------
-# 2. POLISHED & COMPACT USER INTERFACE WITH IMAGES
+# 2. POLISHED & COMPACT USER INTERFACE
 # ---------------------------------------------------------
 st.set_page_config(page_title="Grow-Up Investor Prediction", layout="wide", page_icon="📈")
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", use_container_width=True)
     st.title("Grow-Up Hedge Funding")
     st.markdown("""
     **Welcome to the Investor Conversion Predictor.**
@@ -34,7 +33,6 @@ with st.sidebar:
 
 # --- MAIN HEADER ---
 st.title("📈 Grow-Up Investor Prediction")
-st.image("https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80", use_container_width=True)
 st.markdown("Fill out the investor profile below to predict their likelihood of investing in the stock market.")
 
 # --- TABS ---
