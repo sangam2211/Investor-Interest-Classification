@@ -3,16 +3,15 @@ import pandas as pd
 import joblib
 
 # ---------------------------------------------------------
-# 1. LOAD ASSETS
+# 1. LOAD ASSETS (No Scaler Needed Now!)
 # ---------------------------------------------------------
 @st.cache_resource
 def load_assets():
     model = joblib.load('growup_investor_model.pkl')
-    scaler = joblib.load('growup_scaler.pkl')
     feature_names = joblib.load('model_columns.pkl')
-    return model, scaler, feature_names
+    return model, feature_names
 
-model, scaler, feature_names = load_assets()
+model, feature_names = load_assets()
 
 # ---------------------------------------------------------
 # 2. POLISHED & COMPACT USER INTERFACE WITH IMAGES
@@ -21,7 +20,6 @@ st.set_page_config(page_title="Grow-Up Investor Prediction", layout="wide", page
 
 # --- SIDEBAR ---
 with st.sidebar:
-    # Sidebar Image (Stock market trend)
     st.image("https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", use_container_width=True)
     st.title("Grow-Up Hedge Funding")
     st.markdown("""
@@ -36,7 +34,6 @@ with st.sidebar:
 
 # --- MAIN HEADER ---
 st.title("📈 Grow-Up Investor Prediction")
-# Header Image (Finance/Trading desk)
 st.image("https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80", use_container_width=True)
 st.markdown("Fill out the investor profile below to predict their likelihood of investing in the stock market.")
 
@@ -45,7 +42,6 @@ tab1, tab2, tab3 = st.tabs(["👤 Profile Details", "📊 Asset Rankings", "🎯
 
 with tab1:
     st.subheader("Personal Details")
-    # Using 3 columns to keep the Age slider and dropdowns compact
     col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1:
         age = st.slider("Age", 18, 65, 30)
@@ -57,7 +53,6 @@ with tab1:
 
 with tab2:
     st.subheader("Rank your preferences (1 = Best, 7 = Worst)")
-    # Using 4 columns prevents the sliders from stretching across the screen
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         r_mf = st.slider("Mutual Funds", 1, 7, 1)
@@ -73,7 +68,6 @@ with tab2:
 
 with tab3:
     st.subheader("Investment Behavior")
-    # Using 3 columns makes the dropdowns neat and constrained
     col5, col6, col7 = st.columns(3)
     with col5:
         factors = st.selectbox("Factors considered", ['Returns', 'Risk', 'Locking Period'])
@@ -109,10 +103,12 @@ ui_data = {
 def get_model_input(ui_data):
     input_df = pd.DataFrame(0, index=[0], columns=feature_names)
     
+    # Map Age
     for col in feature_names:
         if col.upper() == 'AGE':
             input_df[col] = ui_data['AGE']
             
+    # Map Rankings
     rank_mapping = {
         'Mutual Funds': ui_data['Rank_MutualFunds'], 'Equity Market': ui_data['Rank_EquityMarket'],
         'Debentures': ui_data['Rank_Debentures'], 'Government Bonds': ui_data['Rank_GovtBonds'],
@@ -125,6 +121,7 @@ def get_model_input(ui_data):
                 if key in col:
                     input_df[col] = val
 
+    # Map Categoricals
     cat_mapping = {
         'GENDER': ui_data['GENDER'],
         'invest in Investment Avenues': ui_data['Invest_Avenues'],
@@ -149,6 +146,7 @@ def get_model_input(ui_data):
                 if col.endswith(f"_{user_choice}"):
                     input_df[col] = 1
 
+    # Map Duration if it was kept numeric
     if 'Investment_Duration' in feature_names:
         dur_map = {'Less than 1 year': 1, '1-3 years': 2, '3-5 years': 3, 'More than 5 years': 4}
         input_df['Investment_Duration'] = dur_map[ui_data['Duration']]
@@ -168,15 +166,18 @@ with button_col2:
 
 if predict_clicked:
     try:
+        # Get the mapped dataframe and strictly enforce column order
         df_input = get_model_input(ui_data)
         df_input = df_input[feature_names]
         
-        scaled_data = scaler.transform(df_input)
-        probabilities = model.predict_proba(scaled_data)[0]
+        # PREDICT DIRECTLY (No Scaler)
+        probabilities = model.predict_proba(df_input)[0]
         
-        # Always use the "Yes" probability for the display so it makes sense!
+        # Isolate probabilities correctly (0=No, 1=Yes)
+        prob_no = probabilities[0] * 100
         prob_yes = probabilities[1] * 100
         
+        # Display nicely centered results
         st.write("") # Spacer
         res_col1, res_col2, res_col3 = st.columns([1, 2, 1])
         with res_col2:
@@ -184,7 +185,6 @@ if predict_clicked:
                 st.success(f"### 📈 Likely to Invest\n**Probability of Investing:** {prob_yes:.1f}%")
                 st.balloons()
             else:
-                # Now it will correctly say something like "Probability of Investing: 11.0%"
                 st.warning(f"### 📉 Unlikely to Invest\n**Probability of Investing:** {prob_yes:.1f}%")
                 
     except Exception as e:
